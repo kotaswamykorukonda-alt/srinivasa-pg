@@ -1605,11 +1605,14 @@ function renderTenantDetail(){
   if(tenant.paymentHistory?.length){
     modal.appendChild(el('div',{className:'sec-title',style:{margin:'10px 0 6px'}},'💳 Payment History'));
     const hist=el('div',{className:'pay-hist'});
-    [...tenant.paymentHistory].reverse().forEach(p=>{
+    tenant.paymentHistory.map((p,idx)=>({p,idx})).reverse().forEach(({p,idx})=>{
       const row=el('div',{className:'pay-row'});
-      row.appendChild(el('div',{style:{display:'flex',justifyContent:'space-between'}},
+      row.appendChild(el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}},
         el('span',{style:{fontWeight:'600'}},formatDate(p.date)),
-        el('span',{style:{fontWeight:'800',color:p.amount<0?'var(--danger)':'var(--success)'}},formatMoney(p.amount))
+        el('div',{style:{display:'flex',alignItems:'center',gap:'6px'}},
+          el('span',{style:{fontWeight:'800',color:p.amount<0?'var(--danger)':'var(--success)'}},formatMoney(p.amount)),
+          el('button',{className:'icon-btn',style:{color:'var(--danger)',fontSize:'13px'},title:'Delete this entry',onClick:()=>{pendingDelete={type:'tenant_payment',roomNo:currentRoom,tenantId:tenant.id,idx};showModal='confirm_delete';render();}},'🗑')
+        )
       ));
       const m=[p.receivedBy?`👤 ${p.receivedBy}`:'',p.mode?`💳 ${p.mode}`:'',p.amount<0?'✏️ Correction':''].filter(Boolean).join(' · ');
       if(m) row.appendChild(el('div',{style:{fontSize:'11px',color:'var(--text2)'}},m));
@@ -1922,7 +1925,18 @@ function renderConfirmDelete(){
         if(room) room.tenants=room.tenants.filter(t=>t.id!==pendingDelete.id);
         showToast('🗑 Tenant deleted'); currentTenant=null;
       }
-      saveDB(db); pendingDelete=null; showModal=null; render();
+      else if(pendingDelete.type==='tenant_payment'){
+        const room=monthRooms()[pendingDelete.roomNo];
+        const t=room&&room.tenants.find(t=>t.id===pendingDelete.tenantId);
+        if(t&&t.paymentHistory&&t.paymentHistory[pendingDelete.idx]!==undefined){
+          t.paymentHistory.splice(pendingDelete.idx,1);
+          t.paidFee=t.paymentHistory.reduce((s,p)=>s+(p.amount||0),0);
+          t.balanceFee=Math.max(0,(t.totalFee||0)-t.paidFee);
+          showToast('🗑 Payment entry deleted');
+        }
+      }
+      const backToTenant=pendingDelete&&pendingDelete.type==='tenant_payment';
+      saveDB(db); pendingDelete=null; showModal=backToTenant?'tenant_detail':null; render();
     }},'Delete')
   ));
   return modal;
