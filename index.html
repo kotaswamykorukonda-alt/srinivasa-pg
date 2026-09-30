@@ -491,9 +491,10 @@ function getTotalCapacity()  { return Object.values(ROOM_CONFIG).reduce((s,c)=>s
 function getTotalCollected() {
   let n=0; Object.values(monthRooms()).forEach(r=>(r.tenants||[]).forEach(t=>n+=(t.paidFee||0))); return n;
 }
-function getExpensesTotal(){ return db.expenses.reduce((s,e)=>s+(e.amount||0),0); }
-function getGasPaid()      { return (db.gasEntries||[]).reduce((s,e)=>s+(e.payments||[]).reduce((p,x)=>p+x.amount,0),0); }
-function getOilPaid()      { return (db.oilEntries||[]).reduce((s,e)=>s+(e.payments||[]).reduce((p,x)=>p+x.amount,0),0); }
+function inCurrentMonth(dateStr){ return !!dateStr && dateStr.slice(0,7)===db.currentMonth; }
+function getExpensesTotal(){ return db.expenses.filter(e=>inCurrentMonth(e.date)).reduce((s,e)=>s+(e.amount||0),0); }
+function getGasPaid()      { return (db.gasEntries||[]).reduce((s,e)=>s+(e.payments||[]).filter(p=>inCurrentMonth(p.date)).reduce((p2,x)=>p2+x.amount,0),0); }
+function getOilPaid()      { return (db.oilEntries||[]).reduce((s,e)=>s+(e.payments||[]).filter(p=>inCurrentMonth(p.date)).reduce((p2,x)=>p2+x.amount,0),0); }
 function getRentPayments() { return (monthData()||{}).rentPayments||[]; }
 function getRentPaid()     { return getRentPayments().reduce((s,p)=>s+(p.amount||0),0); }
 function getRentPending()  { return Math.max(0,(db.rentPerMonth||RENT_AMOUNT)-getRentPaid()); }
@@ -509,17 +510,17 @@ function getPersonStats() {
     if(p.receivedBy && stats[p.receivedBy]) stats[p.receivedBy].received += (p.amount||0);
   })));
 
-  // Spent on regular expenses
-  db.expenses.forEach(e=>{ if(e.paidBy && stats[e.paidBy]) stats[e.paidBy].spent += (e.amount||0); });
+  // Spent on regular expenses (current month only)
+  db.expenses.forEach(e=>{ if(inCurrentMonth(e.date)&&e.paidBy && stats[e.paidBy]) stats[e.paidBy].spent += (e.amount||0); });
 
-  // Spent on gas
-  db.gasEntries.forEach(e=>(e.payments||[]).forEach(p=>{ if(p.paidBy && stats[p.paidBy]) stats[p.paidBy].spent += (p.amount||0); }));
+  // Spent on gas (current month only)
+  db.gasEntries.forEach(e=>(e.payments||[]).forEach(p=>{ if(inCurrentMonth(p.date)&&p.paidBy && stats[p.paidBy]) stats[p.paidBy].spent += (p.amount||0); }));
 
-  // Spent on oil
-  db.oilEntries.forEach(e=>(e.payments||[]).forEach(p=>{ if(p.paidBy && stats[p.paidBy]) stats[p.paidBy].spent += (p.amount||0); }));
+  // Spent on oil (current month only)
+  db.oilEntries.forEach(e=>(e.payments||[]).forEach(p=>{ if(inCurrentMonth(p.date)&&p.paidBy && stats[p.paidBy]) stats[p.paidBy].spent += (p.amount||0); }));
 
-  // Spent on water
-  db.waterTankers.forEach(w=>{ if(w.paidBy && stats[w.paidBy]) stats[w.paidBy].spent += (w.cost||0); });
+  // Spent on water (current month only)
+  db.waterTankers.forEach(w=>{ if(inCurrentMonth(w.date)&&w.paidBy && stats[w.paidBy]) stats[w.paidBy].spent += (w.cost||0); });
 
   // Rent payments (current month)
   getRentPayments().forEach(p=>{ if(p.paidBy && stats[p.paidBy]) stats[p.paidBy].spent += (p.amount||0); });
@@ -535,19 +536,19 @@ function getPersonTransactions(name) {
   })));
 
   db.expenses.forEach(e=>{
-    if(e.paidBy===name) spent.push({date:e.date,amount:e.amount,label:(CAT_MAP[e.category]?.icon||'📦')+' '+(CAT_MAP[e.category]?.label||e.category),sub:[e.description,e.mode].filter(Boolean).join(' · ')});
+    if(e.paidBy===name&&inCurrentMonth(e.date)) spent.push({date:e.date,amount:e.amount,label:(CAT_MAP[e.category]?.icon||'📦')+' '+(CAT_MAP[e.category]?.label||e.category),sub:[e.description,e.mode].filter(Boolean).join(' · ')});
   });
 
   db.gasEntries.forEach(e=>(e.payments||[]).forEach(p=>{
-    if(p.paidBy===name) spent.push({date:p.date,amount:p.amount,label:'🔥 Gas',sub:[p.note,p.mode].filter(Boolean).join(' · ')});
+    if(p.paidBy===name&&inCurrentMonth(p.date)) spent.push({date:p.date,amount:p.amount,label:'🔥 Gas',sub:[p.note,p.mode].filter(Boolean).join(' · ')});
   }));
 
   db.oilEntries.forEach(e=>(e.payments||[]).forEach(p=>{
-    if(p.paidBy===name) spent.push({date:p.date,amount:p.amount,label:'🫙 Oil',sub:[p.note,p.mode].filter(Boolean).join(' · ')});
+    if(p.paidBy===name&&inCurrentMonth(p.date)) spent.push({date:p.date,amount:p.amount,label:'🫙 Oil',sub:[p.note,p.mode].filter(Boolean).join(' · ')});
   }));
 
   db.waterTankers.forEach(w=>{
-    if(w.paidBy===name) spent.push({date:w.date,amount:w.cost,label:'🚛 Water Tanker'+(w.ownerName?` (${w.ownerName})`:''),sub:[w.note,w.mode,w.count?`${w.count} tanker(s)`:''].filter(Boolean).join(' · ')});
+    if(w.paidBy===name&&inCurrentMonth(w.date)) spent.push({date:w.date,amount:w.cost,label:'🚛 Water Tanker'+(w.ownerName?` (${w.ownerName})`:''),sub:[w.note,w.mode,w.count?`${w.count} tanker(s)`:''].filter(Boolean).join(' · ')});
   });
 
   getRentPayments().forEach(p=>{
@@ -588,7 +589,7 @@ function getDayTransactions(dateStr) {
 
   return {received,spent};
 }
-function getTotalTankers() { return db.waterTankers.reduce((s,w)=>s+(w.count||0),0); }
+function getTotalTankers() { return db.waterTankers.filter(w=>inCurrentMonth(w.date)).reduce((s,w)=>s+(w.count||0),0); }
 
 function getCommodityStats(type) {
   const entries=type==='gas'?db.gasEntries:db.oilEntries;
@@ -621,7 +622,7 @@ function el(tag,attrs,...children){
     else if(k==='style'&&typeof v==='object') Object.assign(e.style,v);
     else e.setAttribute(k,v);
   });
-  children.flat().forEach(c=>{ if(c==null||c===false)return; e.appendChild(typeof c==='string'?document.createTextNode(c):c); });
+  children.flat().forEach(c=>{ if(c==null||c===false)return; e.appendChild((typeof c==='string'||typeof c==='number')?document.createTextNode(String(c)):c); });
   return e;
 }
 function svgIcon(paths){
