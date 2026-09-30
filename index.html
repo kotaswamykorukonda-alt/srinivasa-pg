@@ -1546,7 +1546,7 @@ function saveTenant(isEdit,oldTenant){
       Object.assign(t,{shareNo,name,mobile,aadharNumber,dateOfJoining,totalFee,paidFee,balanceFee,paymentDate,status,comments,lastReceivedBy:receivedBy||t.lastReceivedBy,lastPayMode:payMode||t.lastPayMode});
       if(_aadharBase64) t.aadharCopy=_aadharBase64;
       if(status==='vacated'&&!t.vacatedDate) t.vacatedDate=today();
-      if(paidFee>prevPaid&&paymentDate){
+      if(paidFee!==prevPaid&&paymentDate){
         if(!t.paymentHistory) t.paymentHistory=[];
         t.paymentHistory.push({date:paymentDate,amount:paidFee-prevPaid,receivedBy,mode:payMode});
       }
@@ -1609,9 +1609,9 @@ function renderTenantDetail(){
       const row=el('div',{className:'pay-row'});
       row.appendChild(el('div',{style:{display:'flex',justifyContent:'space-between'}},
         el('span',{style:{fontWeight:'600'}},formatDate(p.date)),
-        el('span',{style:{fontWeight:'800',color:'var(--success)'}},formatMoney(p.amount))
+        el('span',{style:{fontWeight:'800',color:p.amount<0?'var(--danger)':'var(--success)'}},formatMoney(p.amount))
       ));
-      const m=[p.receivedBy?`👤 ${p.receivedBy}`:'',p.mode?`💳 ${p.mode}`:''].filter(Boolean).join(' · ');
+      const m=[p.receivedBy?`👤 ${p.receivedBy}`:'',p.mode?`💳 ${p.mode}`:'',p.amount<0?'✏️ Correction':''].filter(Boolean).join(' · ');
       if(m) row.appendChild(el('div',{style:{fontSize:'11px',color:'var(--text2)'}},m));
       hist.appendChild(row);
     });
