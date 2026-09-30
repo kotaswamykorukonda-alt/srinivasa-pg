@@ -780,9 +780,9 @@ function renderStatsBar(){
   const sc=(cls,val,lbl)=>el('div',{className:'stat-card'+cls},el('div',{className:'val'},val),el('div',{className:'lbl'},lbl));
   return el('div',{className:'stats-bar'},
     sc('',`${occ}/${cap}`,'Beds'),
-    sc(' green',col>=1000?`₹${(col/1000).toFixed(1)}k`:`₹${col}`,'Collected'),
-    sc(' red',spent>=1000?`₹${(spent/1000).toFixed(1)}k`:`₹${spent}`,'Spent'),
-    sc(bal>=0?' green':' red',Math.abs(bal)>=1000?`₹${(bal/1000).toFixed(1)}k`:`₹${bal}`,'Balance'),
+    sc(' green',formatMoney(col),'Collected'),
+    sc(' red',formatMoney(spent),'Spent'),
+    sc(bal>=0?' green':' red',formatMoney(bal),'Balance'),
     sc(' orange',`${tans}💧`,'Tankers')
   );
 }
@@ -1064,7 +1064,7 @@ function renderPersonSummaryCard(){
     const grid=el('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'6px'}});
     [{label:'💚 Received',val:s.received,color:'var(--success)'},{label:'🔴 Spent',val:s.spent,color:'var(--danger)'},{label:'📊 Net',val:net,color:net>=0?'var(--success)':'var(--danger)'}].forEach(({label,val,color})=>{
       grid.appendChild(el('div',{style:{background:'var(--bg)',borderRadius:'8px',padding:'7px 6px',textAlign:'center'}},
-        el('div',{style:{fontSize:'13px',fontWeight:'800',color}},val>=1000?`₹${(val/1000).toFixed(1)}k`:`₹${val}`),
+        el('div',{style:{fontSize:'13px',fontWeight:'800',color}},formatMoney(val)),
         el('div',{style:{fontSize:'9px',color:'var(--text2)',marginTop:'2px'}},label)
       ));
     });
@@ -1132,7 +1132,7 @@ function renderDailySummaryCard(){
   const grid=el('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'6px',marginBottom:'8px'}});
   [{label:'💚 Received',val:recTotal,color:'var(--success)'},{label:'🔴 Spent',val:spTotal,color:'var(--danger)'},{label:'📊 Net',val:net,color:net>=0?'var(--success)':'var(--danger)'}].forEach(({label,val,color})=>{
     grid.appendChild(el('div',{style:{background:'var(--bg)',borderRadius:'8px',padding:'7px 6px',textAlign:'center'}},
-      el('div',{style:{fontSize:'13px',fontWeight:'800',color}},val>=1000?`₹${(val/1000).toFixed(1)}k`:`₹${val}`),
+      el('div',{style:{fontSize:'13px',fontWeight:'800',color}},formatMoney(val)),
       el('div',{style:{fontSize:'9px',color:'var(--text2)',marginTop:'2px'}},label)
     ));
   });
